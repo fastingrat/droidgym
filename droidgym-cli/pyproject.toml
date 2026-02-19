@@ -1,0 +1,8 @@
+[project]
+name = "droidgym-cli"
+version = "0.1.0"
+readme = "README.md"
+dependencies = [
+    "rich>=14.3.2",
+    "textual>=8.0.0",
+]

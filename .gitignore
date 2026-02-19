@@ -1,0 +1,13 @@
+# Android
+**/.android_home/
+**/*.log
+**/*.apk
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Nix
+flake.lock
+
