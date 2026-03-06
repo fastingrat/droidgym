@@ -86,6 +86,8 @@ class SpawnScreen(ModalScreen[EmulatorConfig]):
             Input("768", id="memory_input", type="integer"),
             Horizontal(
                 Checkbox("Headless", True, id="headless_chk"),
+                Checkbox("Read Only", True, id="read_only_chk"),
+                Checkbox("Use Snapshot", True, id="use_snapshot_chk"),
                 classes="field",
             ),
             Horizontal(
@@ -104,11 +106,13 @@ class SpawnScreen(ModalScreen[EmulatorConfig]):
                 name = self.query_one("#avd_select", Select).value
                 mem = int(self.query_one("#memory_input", Input).value)
                 headless = self.query_one("#headless_chk", Checkbox).value
+                readonly = self.query_one("#read_only_chk", Checkbox).value
+                snapshot = self.query_one("#use_snapshot_chk", Checkbox).value
                 if not name:
                     self.notify("Please select an AVD", severity="error")
                     return
 
-                config = EmulatorConfig(avd_name=name, memory=mem, headless=headless)
+                config = EmulatorConfig(avd_name=name, memory=mem, headless=headless, read_only=readonly, use_snapshot=snapshot)
 
                 self.dismiss(config)
             except ValueError:
