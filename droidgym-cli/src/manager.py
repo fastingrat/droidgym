@@ -66,7 +66,9 @@ class EmulatorManager:
     def env(self) -> Dict[str, str]:
         # Use .android_home for emulator and avd
         env = os.environ.copy()
+        env["ANDROID_USER_HOME"] = self.android_home
         env["ANDROID_EMULATOR_HOME"] = self.android_home
+        env["ANDROID_AVD_HOME"] = os.path.join(self.android_home, "avd")
         return env
 
     def create_avd(
@@ -100,6 +102,17 @@ class EmulatorManager:
             return [line for line in result.stdout.splitlines() if line.strip()]
         except Exception:
             return []
+
+    def list_snapshots(self, avd_name: str) -> List[str]:
+        """List available snapshots for a given AVD."""
+        avd_home = self.env.get("ANDROID_AVD_HOME", os.path.join(self.android_home, "avd"))
+        snapshots_dir = os.path.join(avd_home, f"{avd_name}.avd", "snapshots")
+        if not os.path.isdir(snapshots_dir):
+            return []
+        return [
+            d for d in os.listdir(snapshots_dir)
+            if os.path.isdir(os.path.join(snapshots_dir, d))
+        ]
 
     def spawn_emulator(self, config: EmulatorConfig) -> EmulatorInstance:
         port = config.port or self._find_free_port()

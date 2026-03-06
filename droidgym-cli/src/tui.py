@@ -68,19 +68,22 @@ class SpawnScreen(ModalScreen[EmulatorConfig]):
     }
     """
 
-    def __init__(self, avd_list: list[str]):
+    def __init__(self, avd_list: list[str], manager: EmulatorManager):
         super().__init__()
         self.avd_list = avd_list
+        self.manager = manager
 
     def compose(self) -> ComposeResult:
         avd_options = [(a, a) for a in self.avd_list]
+        first_avd = self.avd_list[0] if self.avd_list else None
+        snapshot_options = self._get_snapshot_options(first_avd)
         yield Container(
             Label("Spawn New Emulator", classes="header"),
             Label("AVD Image:"),
             Select(
                 avd_options,
                 id="avd_select",
-                value=self.avd_list[0] if self.avd_list else None,
+                value=first_avd,
             ),
             Label("Memory (MB):"),
             Input("768", id="memory_input", type="integer"),
@@ -90,6 +93,12 @@ class SpawnScreen(ModalScreen[EmulatorConfig]):
                 Checkbox("Use Snapshot", True, id="use_snapshot_chk"),
                 classes="field",
             ),
+            Label("Snapshot:"),
+            Select(
+                snapshot_options,
+                id="snapshot_select",
+                allow_blank=True,
+            ),
             Horizontal(
                 Button("Spawn", variant="primary", id="spawn"),
                 Button("Cancel", variant="error", id="cancel"),
@@ -97,6 +106,20 @@ class SpawnScreen(ModalScreen[EmulatorConfig]):
             ),
             id="dialog",
         )
+
+    def _get_snapshot_options(self, avd_name: str | None) -> list[tuple[str, str]]:
+        if not avd_name:
+            return []
+        snapshots = self.manager.list_snapshots(avd_name)
+        return [(s, s) for s in snapshots] if snapshots else []
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id == "avd_select":
+            snapshot_select = self.query_one("#snapshot_select", Select)
+            options = self._get_snapshot_options(event.value)
+            snapshot_select.set_options(options)
+            if not options:
+                snapshot_select.clear()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel":
@@ -107,12 +130,20 @@ class SpawnScreen(ModalScreen[EmulatorConfig]):
                 mem = int(self.query_one("#memory_input", Input).value)
                 headless = self.query_one("#headless_chk", Checkbox).value
                 readonly = self.query_one("#read_only_chk", Checkbox).value
-                snapshot = self.query_one("#use_snapshot_chk", Checkbox).value
+                use_snapshot = self.query_one("#use_snapshot_chk", Checkbox).value
+                snapshot_name = self.query_one("#snapshot_select", Select).value
                 if not name:
                     self.notify("Please select an AVD", severity="error")
                     return
 
-                config = EmulatorConfig(avd_name=name, memory=mem, headless=headless, read_only=readonly, use_snapshot=snapshot)
+                config = EmulatorConfig(
+                    avd_name=name,
+                    memory=mem,
+                    headless=headless,
+                    read_only=readonly,
+                    use_snapshot=use_snapshot,
+                    snapshot_name=snapshot_name if use_snapshot and snapshot_name != Select.BLANK else "default_boot",
+                )
 
                 self.dismiss(config)
             except ValueError:
@@ -214,7 +245,7 @@ class DroidGymApp(App):
                     self.notify(f"Spawn failed: {e}", severity="error")
                     self.manager._log(f"SPAWN ERROR: {e}")
 
-        self.push_screen(SpawnScreen(avds), handle_submit)
+        self.push_screen(SpawnScreen(avds, self.manager), handle_submit)
 
     def action_kill(self):
         table = self.query_one(DataTable)
